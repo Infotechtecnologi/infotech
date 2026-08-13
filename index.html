@@ -891,11 +891,13 @@ footer{background:var(--blue-900); color:rgba(255,255,255,0.72); padding:64px 0 
     <div class="contact-form-panel reveal">
       <h3>Cuéntanos sobre tu proyecto</h3>
       <p>Respondemos en menos de 24 horas hábiles.</p>
-      <form id="contactForm" style="display:flex; flex-direction:column; gap:14px;">
-        <input required type="text" placeholder="Nombre" style="padding:13px 15px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:14.5px;">
-        <input required type="email" placeholder="Email" style="padding:13px 15px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:14.5px;">
-        <textarea required placeholder="Cuéntanos qué necesitas" rows="4" style="padding:13px 15px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:14.5px; resize:vertical;"></textarea>
+      <form id="contactForm" action="https://formspree.io/f/mrpzkaov" method="POST" style="display:flex; flex-direction:column; gap:14px;">
+        <input required type="text" name="name" placeholder="Nombre" style="padding:13px 15px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:14.5px;">
+        <input required type="email" name="email" placeholder="Email" style="padding:13px 15px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:14.5px;">
+        <textarea required name="message" placeholder="Cuéntanos qué necesitas" rows="4" style="padding:13px 15px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:14.5px; resize:vertical;"></textarea>
+        <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
         <button type="submit" class="btn btn-primary" style="width:100%;">Enviar mensaje</button>
+        <p id="formStatus" style="font-size:13px; color:#5A6478; display:none; text-align:center; margin-top:-4px;"></p>
       </form>
     </div>
   </div>
@@ -943,6 +945,15 @@ footer{background:var(--blue-900); color:rgba(255,255,255,0.72); padding:64px 0 
   <span class="wa-tooltip">¿Hablamos sobre tu proyecto?</span>
 </a>
 
+<div style="text-align: center; margin: 40px; font-family: sans-serif;">
+    <h2 style="margin-bottom: 10px; color: #333;">Agenda tu cita</h2>
+    <p style="color: #666; margin-bottom: 20px;">Selecciona el horario que mejor te convenga para reunirnos.</p>
+    <a href="https://calendar.app.google/Pa87hhNjCF1GinRB9" 
+       target="_blank" 
+       style="background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+       Agendar mi cita ahora
+    </a>
+</div>
 <script>
 // ---------- WhatsApp links ----------
 const waNumber = "59894547183";
@@ -1018,14 +1029,39 @@ const countIo = new IntersectionObserver((entries)=>{
 }, {threshold:0.6});
 counters.forEach(c=>countIo.observe(c));
 
-// ---------- Contact form (demo) ----------
-document.getElementById('contactForm').addEventListener('submit', function(e){
+// ---------- Contact form (Formspree) ----------
+const contactForm = document.getElementById('contactForm');
+const formStatus = document.getElementById('formStatus');
+contactForm.addEventListener('submit', function(e){
   e.preventDefault();
-  const btn = this.querySelector('button');
+  const btn = this.querySelector('button[type="submit"]');
   const original = btn.textContent;
-  btn.textContent = 'Mensaje enviado ✓';
-  btn.style.background = '#12C793';
-  setTimeout(()=>{ btn.textContent = original; btn.style.background=''; this.reset(); }, 2200);
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  formStatus.style.display = 'none';
+
+  fetch(this.action, {
+    method: 'POST',
+    body: new FormData(this),
+    headers: { 'Accept': 'application/json' }
+  }).then(response => {
+    if(response.ok){
+      btn.textContent = 'Mensaje enviado ✓';
+      btn.style.background = '#12C793';
+      this.reset();
+      setTimeout(()=>{ btn.textContent = original; btn.style.background=''; btn.disabled = false; }, 2600);
+    } else {
+      return response.json().then(data => {
+        throw new Error((data && data.errors) ? data.errors.map(e=>e.message).join(', ') : 'Error al enviar');
+      });
+    }
+  }).catch(() => {
+    btn.textContent = original;
+    btn.disabled = false;
+    formStatus.textContent = 'No pudimos enviar tu mensaje. Probá de nuevo o escribinos por WhatsApp.';
+    formStatus.style.color = '#D64545';
+    formStatus.style.display = 'block';
+  });
 });
 
 // ---------- Reduced motion check ----------
